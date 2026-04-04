@@ -118,137 +118,102 @@ function detectAgent(message: string): AgentConfig {
   return { name: "unknown", prompt: "", isMenu: false };
 }
 
-async function callGemini(
+async function callAI(
   userMessage: string,
   systemPrompt: string,
   history: { role: string; text: string }[]
 ): Promise<string> {
-  const apiKey = process.env.GEMINI_API_KEY_WHATSAPP;
-  if (!apiKey) return "Service unavailable. Please try again later.";
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent`;
-
-  const recentHistory = history.slice(-4);
-  const contents = [
-    ...recentHistory.map(h => ({
-      role: h.role === "user" ? "user" : "model",
-      parts: [{ text: h.text }],
-    })),
-    { role: "user", parts: [{ text: userMessage }] },
-  ];
-
+  // 👉 1. TRY GEMINI FIRST
   try {
-    const res = await fetch(url, {
+    const geminiKey = process.env.GEMINI_API_KEY_WHATSAPP;
+
+    const res = await fetch(
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-goog-api-key": geminiKey!,
+        },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: userMessage }] }],
+          system_instruction: { parts: [{ text: systemPrompt }] },
+        }),
+      }
+    );
+
+    if (res.ok) {
+      const data = await res.json();
+      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (text) return text;
+    } else {
+      console.error("Gemini failed:", res.status);
+    }
+  } catch (err) {
+    console.error("Gemini error:", err);
+  }
+
+  // 👉 2. FALLBACK TO GROQ
+  try {
+    const groqKey = process.env.GROQ_API_KEY;
+
+    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-goog-api-key": apiKey,
+        "Authorization": `Bearer ${groqKey}`,
       },
       body: JSON.stringify({
-        contents,
-        system_instruction: { parts: [{ text: systemPrompt }] },
-        generationConfig: { maxOutputTokens: 300, temperature: 0.7 },
+        model: "llama3-70b-8192",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userMessage },
+        ],
       }),
     });
 
-    if (!res.ok) {
-      console.error("Gemini error:", res.status, await res.text());
-      return "Sorry, I couldn't process that. Please try again.";
+    if (res.ok) {
+      const data = await res.json();
+      const text = data?.choices?.[0]?.message?.content;
+      if (text) return text;
+    } else {
+      console.error("Groq failed:", res.status);
     }
-
-    const data = await res.json();
-    return data?.candidates?.[0]?.content?.parts?.[0]?.text || "No response received.";
   } catch (err) {
-    console.error("Gemini fetch error:", err);
-    return "Sorry, something went wrong. Please try again.";
+    console.error("Groq error:", err);
   }
-}
 
-function truncate(text: string, max = 1500): string {
-  if (text.length <= max) return text;
-  return text.slice(0, max - 3) + "...";
-}
-
-function escapeXml(text: string): string {
-  return text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&apos;");
-}
-
-function twimlResponse(message: string): NextResponse {
-  const twiml = `<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Message>${escapeXml(truncate(message))}</Message>
-</Response>`;
-  return new NextResponse(twiml, { headers: { "Content-Type": "text/xml" } });
-}
-
-export async function POST(req: NextRequest) {
+  // 👉 3. FALLBACK TO MISTRAL
   try {
-    const formData = await req.formData();
-    const userMessage = ((formData.get("Body") as string) || "").trim();
-    const from = (formData.get("From") as string) || "unknown";
+    const mistralKey = process.env.MISTRAL_API_KEY;
 
-    const lowerMsg = userMessage.toLowerCase().trim();
+    const res = await fetch("https://api.mistral.ai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${mistralKey}`,
+      },
+      body: JSON.stringify({
+        model: "mistral-small",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userMessage },
+        ],
+      }),
+    });
 
-    if (!userMessage) {
-      return twimlResponse("Please send a message! Type *menu* to see all agents.");
+    if (res.ok) {
+      const data = await res.json();
+      const text = data?.choices?.[0]?.message?.content;
+      if (text) return text;
+    } else {
+      console.error("Mistral failed:", res.status);
     }
-
-    // ✅ NEW: handle bye / exit
-    if (["bye", "goodbye", "exit", "quit"].includes(lowerMsg)) {
-      sessions.delete(from);
-      return twimlResponse("👋 Goodbye! Type *hi* anytime to start again.");
-    }
-
-    const isExplicitMenu = GREETINGS.some(g =>
-      lowerMsg === g || lowerMsg.startsWith(g + " ")
-    );
-
-    if (isExplicitMenu) {
-      sessions.delete(from);
-      return twimlResponse(MENU_TEXT);
-    }
-
-    const agent = detectAgent(userMessage);
-    const existingSession = sessions.get(from);
-
-    if (agent.name === "unknown") {
-      if (existingSession?.agentName && AGENT_PROMPTS[existingSession.agentName]) {
-        const aiResponse = await callGemini(
-          userMessage,
-          AGENT_PROMPTS[existingSession.agentName],
-          existingSession.history
-        );
-        existingSession.history.push({ role: "user", text: userMessage });
-        existingSession.history.push({ role: "assistant", text: aiResponse });
-        if (existingSession.history.length > 10) existingSession.history = existingSession.history.slice(-10);
-        sessions.set(from, existingSession);
-        return twimlResponse(`*${existingSession.agentName}*\n\n${aiResponse}\n\n_Type *menu* for other agents_`);
-      }
-      return twimlResponse(MENU_TEXT);
-    }
-
-    const session = existingSession || { agentName: "", history: [] };
-
-    if (session.agentName && session.agentName !== agent.name) {
-      session.history = [];
-    }
-    session.agentName = agent.name;
-
-    const aiResponse = await callGemini(userMessage, agent.prompt, session.history);
-    session.history.push({ role: "user", text: userMessage });
-    session.history.push({ role: "assistant", text: aiResponse });
-    if (session.history.length > 10) session.history = session.history.slice(-10);
-    sessions.set(from, session);
-
-    return twimlResponse(`*${agent.name}*\n\n${aiResponse}\n\n_Type *menu* for other agents_`);
-
-  } catch (error) {
-    console.error("WhatsApp webhook error:", error);
-    return twimlResponse("Sorry, something went wrong. Please try again!");
+  } catch (err) {
+    console.error("Mistral error:", err);
   }
+
+  // ❌ ALL FAILED
+  return "⚠️ All AI services are busy. Please try again in a moment.";
 }
