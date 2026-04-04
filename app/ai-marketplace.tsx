@@ -897,6 +897,254 @@ function AgentCard({ agent, onTry, index }: { agent: Agent; onTry: (a: Agent) =>
     </div>
   );
 }
+// ─── Agent Builder Modal ──────────────────────────────────────────────────────
+
+const ICON_OPTIONS = ["🤖","🧠","💡","🔬","📚","🎨","💼","🌍","⚡","🛡️","🎯","🔧","📊","🏥","⚖️","🌾","💰","🎓","🚀","🔮"];
+const COLOR_OPTIONS = [
+  { label: "Purple", color: "#7c5cbf", bg: "#0d0b14", border: "rgba(124,92,191,0.3)", accent: "#c8b8ff", muted: "#7c5cbf", dim: "rgba(124,92,191,0.12)" },
+  { label: "Green",  color: "#2e7d32", bg: "#0a1a0d", border: "rgba(76,175,80,0.25)",  accent: "#a5d6a7", muted: "#66bb6a", dim: "rgba(76,175,80,0.1)"   },
+  { label: "Blue",   color: "#1565c0", bg: "#050d1a", border: "rgba(21,101,192,0.3)",  accent: "#90caf9", muted: "#42a5f5", dim: "rgba(21,101,192,0.1)"  },
+  { label: "Red",    color: "#c62828", bg: "#130808", border: "rgba(198,40,40,0.3)",   accent: "#ef9a9a", muted: "#e57373", dim: "rgba(198,40,40,0.1)"   },
+  { label: "Orange", color: "#e65100", bg: "#110900", border: "rgba(230,81,0,0.3)",    accent: "#ffcc80", muted: "#ffa726", dim: "rgba(230,81,0,0.1)"    },
+  { label: "Pink",   color: "#ad1457", bg: "#130510", border: "rgba(173,20,87,0.3)",   accent: "#f48fb1", muted: "#ec407a", dim: "rgba(173,20,87,0.1)"   },
+];
+const CATEGORY_OPTIONS = ["Career","Agriculture","Tax","Healthcare","Legal","Finance","Education","Tech","Other"];
+
+function AgentBuilderModal({ isOpen, onClose, onCreated }: { isOpen: boolean; onClose: () => void; onCreated: (agent: Agent) => void }) {
+  const { user } = useAuth();
+  const [step, setStep] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const [name, setName]           = useState("");
+  const [tagline, setTagline]     = useState("");
+  const [category, setCategory]   = useState("Tech");
+  const [icon, setIcon]           = useState("🤖");
+  const [colorIdx, setColorIdx]   = useState(0);
+  const [prompt, setPrompt]       = useState("");
+  const [ex1Label, setEx1Label]   = useState("");
+  const [ex1Q, setEx1Q]           = useState("");
+  const [ex2Label, setEx2Label]   = useState("");
+  const [ex2Q, setEx2Q]           = useState("");
+  const [ex3Label, setEx3Label]   = useState("");
+  const [ex3Q, setEx3Q]           = useState("");
+
+  const selectedColor = COLOR_OPTIONS[colorIdx];
+
+  function reset() {
+    setStep(1); setName(""); setTagline(""); setCategory("Tech");
+    setIcon("🤖"); setColorIdx(0); setPrompt("");
+    setEx1Label(""); setEx1Q(""); setEx2Label(""); setEx2Q("");
+    setEx3Label(""); setEx3Q(""); setError("");
+  }
+
+  async function handleCreate() {
+    if (!name || !tagline || !prompt || !ex1Label || !ex1Q) {
+      setError("Please fill all required fields");
+      return;
+    }
+    setLoading(true);
+    setError("");
+
+    const { data, error: dbError } = await supabase.from("custom_agents").insert({
+      name, tagline, category, icon,
+      color: selectedColor.color,
+      system_prompt: prompt,
+      example1_label: ex1Label, example1_q: ex1Q,
+      example2_label: ex2Label || "Example 2", example2_q: ex2Q || ex1Q,
+      example3_label: ex3Label || "Example 3", example3_q: ex3Q || ex1Q,
+      created_by: user?.id || "anonymous",
+    }).select().single();
+
+    if (dbError || !data) {
+      setError("Failed to create agent. Try again.");
+      setLoading(false);
+      return;
+    }
+
+    // Convert DB row to Agent type
+    const newAgent: Agent = {
+      id: data.id,
+      name: data.name,
+      tagline: data.tagline,
+      category: data.category,
+      icon: data.icon,
+      color: selectedColor.color,
+      bg: selectedColor.bg,
+      border: selectedColor.border,
+      accent: selectedColor.accent,
+      muted: selectedColor.muted,
+      dim: selectedColor.dim,
+      runs: 0,
+      featured: false,
+      systemPrompt: data.system_prompt,
+      examples: [
+        { label: data.example1_label, q: data.example1_q },
+        { label: data.example2_label, q: data.example2_q },
+        { label: data.example3_label, q: data.example3_q },
+      ],
+      inputLabel: "Your question",
+      inputPlaceholder: `Ask ${data.name}...`,
+      btnLabel: `${data.icon} Ask ${data.name}`,
+      disclaimer: null,
+      quickRef: null,
+    };
+
+    onCreated(newAgent);
+    reset();
+    onClose();
+    setLoading(false);
+  }
+
+  if (!isOpen) return null;
+
+  const inputStyle = { width: "100%", padding: "11px 14px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.04)", color: "#fff", fontFamily: "inherit", fontSize: 14, outline: "none", boxSizing: "border-box" as const };
+  const labelStyle = { fontSize: 12, color: "rgba(255,255,255,0.6)", marginBottom: 6, display: "block" as const };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.9)", backdropFilter: "blur(12px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000, padding: 20 }}
+      onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div style={{ width: "100%", maxWidth: 560, background: "linear-gradient(135deg, #0f0f14 0%, #0a0a0f 100%)", borderRadius: 24, border: "1px solid rgba(255,255,255,0.1)", overflow: "hidden", maxHeight: "90vh", display: "flex", flexDirection: "column" }}>
+
+        {/* Header */}
+        <div style={{ padding: "24px 28px 20px", borderBottom: "1px solid rgba(255,255,255,0.07)", display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>
+          <div>
+            <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "#fff" }}>🧠 Build an Agent</h2>
+            <p style={{ margin: "4px 0 0", fontSize: 13, color: "rgba(255,255,255,0.4)" }}>Step {step} of 3 — {["Identity", "Behavior", "Examples"][step - 1]}</p>
+          </div>
+          <button onClick={() => { reset(); onClose(); }} style={{ width: 32, height: 32, borderRadius: "50%", border: "1px solid rgba(255,255,255,0.1)", background: "transparent", color: "rgba(255,255,255,0.5)", cursor: "pointer", fontSize: 18 }}>×</button>
+        </div>
+
+        {/* Progress bar */}
+        <div style={{ height: 3, background: "rgba(255,255,255,0.05)" }}>
+          <div style={{ height: "100%", width: `${(step / 3) * 100}%`, background: "linear-gradient(90deg, #7c5cbf, #c8b8ff)", transition: "width 0.3s" }} />
+        </div>
+
+        {/* Body */}
+        <div style={{ flex: 1, overflowY: "auto", padding: "24px 28px" }}>
+
+          {/* Step 1: Identity */}
+          {step === 1 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+              <div>
+                <label style={labelStyle}>Agent Name *</label>
+                <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Travel Guru" style={inputStyle} />
+              </div>
+              <div>
+                <label style={labelStyle}>Tagline *</label>
+                <input value={tagline} onChange={(e) => setTagline(e.target.value)} placeholder="e.g. Plan trips, find deals & travel tips" style={inputStyle} />
+              </div>
+              <div>
+                <label style={labelStyle}>Category</label>
+                <select value={category} onChange={(e) => setCategory(e.target.value)} style={{ ...inputStyle, cursor: "pointer" }}>
+                  {CATEGORY_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={labelStyle}>Icon</label>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 4 }}>
+                  {ICON_OPTIONS.map((ic) => (
+                    <button key={ic} onClick={() => setIcon(ic)}
+                      style={{ width: 44, height: 44, borderRadius: 10, border: `2px solid ${icon === ic ? "#7c5cbf" : "rgba(255,255,255,0.1)"}`, background: icon === ic ? "rgba(124,92,191,0.2)" : "rgba(255,255,255,0.03)", fontSize: 22, cursor: "pointer" }}>
+                      {ic}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label style={labelStyle}>Color Theme</label>
+                <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
+                  {COLOR_OPTIONS.map((c, i) => (
+                    <button key={i} onClick={() => setColorIdx(i)}
+                      style={{ width: 36, height: 36, borderRadius: "50%", border: `3px solid ${colorIdx === i ? "#fff" : "transparent"}`, background: c.color, cursor: "pointer" }} />
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Step 2: Behavior */}
+          {step === 2 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+              <div style={{ padding: 16, borderRadius: 14, background: "rgba(124,92,191,0.08)", border: "1px solid rgba(124,92,191,0.2)" }}>
+                <p style={{ margin: 0, fontSize: 13, color: "rgba(255,255,255,0.6)", lineHeight: 1.6 }}>
+                  💡 Describe what your agent should do. Be specific — mention its tone, what topics it covers, and any rules it should follow.
+                </p>
+              </div>
+              <div>
+                <label style={labelStyle}>System Instructions *</label>
+                <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)}
+                  placeholder={`e.g. You are Travel Guru, an expert travel assistant. Help users with:\n1. Trip planning and itineraries\n2. Finding best deals on flights and hotels\n3. Visa requirements and travel tips\nBe concise and practical. Always suggest budget options.`}
+                  rows={10}
+                  style={{ ...inputStyle, resize: "vertical", lineHeight: 1.6 }} />
+              </div>
+
+              {/* Live Preview */}
+              <div style={{ padding: 14, borderRadius: 12, background: selectedColor.dim, border: `1px solid ${selectedColor.border}` }}>
+                <div style={{ fontSize: 11, color: selectedColor.muted, marginBottom: 8, letterSpacing: "0.1em" }}>PREVIEW</div>
+                <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                  <div style={{ width: 40, height: 40, borderRadius: 10, background: selectedColor.dim, border: `1px solid ${selectedColor.border}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>{icon}</div>
+                  <div>
+                    <div style={{ fontWeight: 700, color: selectedColor.accent, fontSize: 15 }}>{name || "Agent Name"}</div>
+                    <div style={{ fontSize: 12, color: selectedColor.muted }}>{tagline || "Your tagline here"}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Step 3: Examples */}
+          {step === 3 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+              <div style={{ padding: 14, borderRadius: 12, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                <p style={{ margin: 0, fontSize: 13, color: "rgba(255,255,255,0.5)", lineHeight: 1.6 }}>
+                  Add example questions users can click to get started quickly. First one is required.
+                </p>
+              </div>
+              {[
+                { label: ex1Label, setLabel: setEx1Label, q: ex1Q, setQ: setEx1Q, num: 1, required: true },
+                { label: ex2Label, setLabel: setEx2Label, q: ex2Q, setQ: setEx2Q, num: 2, required: false },
+                { label: ex3Label, setLabel: setEx3Label, q: ex3Q, setQ: setEx3Q, num: 3, required: false },
+              ].map(({ label, setLabel, q, setQ, num, required }) => (
+                <div key={num} style={{ padding: 16, borderRadius: 14, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.07)" }}>
+                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginBottom: 10 }}>Example {num} {required ? "*" : "(optional)"}</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Button label e.g. 🌍 Plan a trip" style={{ ...inputStyle, fontSize: 13 }} />
+                    <textarea value={q} onChange={(e) => setQ(e.target.value)} placeholder="Full question e.g. I want to visit Bali for 7 days in December. Budget is ₹80,000. Plan my trip!" rows={2} style={{ ...inputStyle, fontSize: 13, resize: "none" }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {error && (
+            <div style={{ marginTop: 16, padding: "10px 14px", borderRadius: 10, background: "rgba(200,40,40,0.1)", border: "1px solid rgba(200,40,40,0.2)", color: "#ef9a9a", fontSize: 13 }}>
+              ⚠ {error}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div style={{ padding: "16px 28px", borderTop: "1px solid rgba(255,255,255,0.07)", display: "flex", gap: 10, justifyContent: "space-between", flexShrink: 0 }}>
+          <button onClick={() => step > 1 ? setStep(step - 1) : (reset(), onClose())}
+            style={{ padding: "10px 24px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.1)", background: "transparent", color: "rgba(255,255,255,0.6)", cursor: "pointer", fontFamily: "inherit", fontSize: 14 }}>
+            {step === 1 ? "Cancel" : "← Back"}
+          </button>
+          {step < 3
+            ? <button onClick={() => { if (step === 1 && !name) { setError("Name is required"); return; } setError(""); setStep(step + 1); }}
+                style={{ padding: "10px 28px", borderRadius: 12, border: "none", background: "linear-gradient(135deg, #7c5cbf 0%, #5a3d8f 100%)", color: "#fff", cursor: "pointer", fontFamily: "inherit", fontSize: 14, fontWeight: 600 }}>
+                Next →
+              </button>
+            : <button onClick={handleCreate} disabled={loading}
+                style={{ padding: "10px 28px", borderRadius: 12, border: "none", background: "linear-gradient(135deg, #7c5cbf 0%, #5a3d8f 100%)", color: "#fff", cursor: loading ? "not-allowed" : "pointer", fontFamily: "inherit", fontSize: 14, fontWeight: 600, opacity: loading ? 0.7 : 1 }}>
+                {loading ? "Creating..." : "🚀 Launch Agent"}
+              </button>
+          }
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // ─── Main Marketplace Content ─────────────────────────────────────────────────
 
@@ -906,7 +1154,36 @@ function MarketplaceContent() {
   const [activeAgent, setActiveAgent] = useState<Agent | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const { user } = useAuth();
+  const [showBuilder, setShowBuilder] = useState(false);
+const [customAgents, setCustomAgents] = useState<Agent[]>([]);
+useEffect(() => {
+  async function loadCustomAgents() {
+    const { data } = await supabase.from("custom_agents").select("*").order("created_at", { ascending: false });
+    if (!data) return;
+    const mapped: Agent[] = data.map((d: any) => {
+      const c = COLOR_OPTIONS.find((x) => x.color === d.color) || COLOR_OPTIONS[0];
+      return {
+        id: d.id, name: d.name, tagline: d.tagline, category: d.category, icon: d.icon,
+        color: c.color, bg: c.bg, border: c.border, accent: c.accent, muted: c.muted, dim: c.dim,
+        runs: d.runs, featured: false,
+        systemPrompt: d.system_prompt,
+        examples: [
+          { label: d.example1_label, q: d.example1_q },
+          { label: d.example2_label, q: d.example2_q },
+          { label: d.example3_label, q: d.example3_q },
+        ],
+        inputLabel: "Your question",
+        inputPlaceholder: `Ask ${d.name}...`,
+        btnLabel: `${d.icon} Ask ${d.name}`,
+        disclaimer: null, quickRef: null,
+      };
+    });
+    setCustomAgents(mapped);
+  }
+  loadCustomAgents();
+}, []);
 
+  const allAgents = [...AGENTS, ...customAgents];
   const filtered = AGENTS.filter((a) => {
     const matchCat = category === "All" || a.category === category;
     const q = search.toLowerCase();
@@ -987,13 +1264,21 @@ function MarketplaceContent() {
 
       {/* Footer */}
       <div style={{ textAlign: "center", padding: "48px 24px 64px", borderTop: "1px solid rgba(255,255,255,0.05)", background: "linear-gradient(180deg, transparent 0%, rgba(124,92,191,0.05) 100%)" }}>
-        <p style={{ fontSize: 15, color: "rgba(255,255,255,0.4)", marginBottom: 20 }}>🚀 Have a specialized agent to share?</p>
-        <button style={{ padding: "12px 32px", borderRadius: 40, border: "1px solid rgba(255,255,255,0.15)", background: "linear-gradient(135deg, rgba(124,92,191,0.2) 0%, rgba(124,92,191,0.05) 100%)", color: "rgba(255,255,255,0.8)", cursor: "pointer", fontSize: 14, fontWeight: 600 }}>Submit an Agent →</button>
-      </div>
+        <p style={{ fontSize: 15,  color: "rgba(255,255,255,0.4)", marginBottom: 20 }}>🚀 Have a specialized agent to share?</p>
+      <button 
+  onClick={() => user ? setShowBuilder(true) : setShowAuthModal(true)}
+  style={{ padding: "12px 32px", borderRadius: 40, border: "1px solid rgba(255,255,255,0.15)", background: "linear-gradient(135deg, rgba(124,92,191,0.2) 0%, rgba(124,92,191,0.05) 100%)", color: "rgba(255,255,255,0.8)", cursor: "pointer", fontSize: 14, fontWeight: 600 }}>
+  🧠 Build Your Own Agent →
+</button></div>
 
       {activeAgent && <AgentPanel agent={activeAgent} onClose={() => setActiveAgent(null)} />}
       <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} onSuccess={() => {}} />
-      <PasswordResetModal />
+<PasswordResetModal />
+<AgentBuilderModal 
+  isOpen={showBuilder} 
+  onClose={() => setShowBuilder(false)} 
+  onCreated={(agent) => { setCustomAgents((prev) => [agent, ...prev]); setActiveAgent(agent); }}
+/>
     </div>
   );
 }
