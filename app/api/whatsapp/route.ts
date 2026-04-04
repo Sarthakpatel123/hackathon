@@ -32,7 +32,11 @@ const AGENT_PROMPTS: Record<string, string> = {
   "Career Mitra 🎯": `You are Career Mitra, an Indian career guidance assistant. Help with career, jobs, resume, interviews. Be concise (2-3 sentences max). Reply in the same language as the user.`,
 };
 
-const GREETINGS = ["hi", "hello", "hey", "start", "help", "menu", "हेलो", "नमस्ते", "हाय", "namaste"];
+const GREETINGS = [
+  "hi", "hello", "hey", "start", "help", "menu",
+  "bye", "goodbye", "exit", "quit",
+  "हेलो", "नमस्ते", "हाय", "namaste"
+];
 
 function detectAgent(message: string): AgentConfig {
   const msg = message.toLowerCase().trim();
@@ -111,7 +115,6 @@ function detectAgent(message: string): AgentConfig {
     return { name: "Career Mitra 🎯", prompt: AGENT_PROMPTS["Career Mitra 🎯"] };
   }
 
-  // No keyword match — return unknown (handled in POST with session fallback)
   return { name: "unknown", prompt: "", isMenu: false };
 }
 
@@ -189,16 +192,22 @@ export async function POST(req: NextRequest) {
     const userMessage = ((formData.get("Body") as string) || "").trim();
     const from = (formData.get("From") as string) || "unknown";
 
+    const lowerMsg = userMessage.toLowerCase().trim();
+
     if (!userMessage) {
       return twimlResponse("Please send a message! Type *menu* to see all agents.");
     }
 
-    const isExplicitMenu = GREETINGS.some(g =>
-      userMessage.toLowerCase().trim() === g ||
-      userMessage.toLowerCase().trim().startsWith(g + " ")
-    ) || userMessage.trim().length <= 3;
+    // ✅ NEW: handle bye / exit
+    if (["bye", "goodbye", "exit", "quit"].includes(lowerMsg)) {
+      sessions.delete(from);
+      return twimlResponse("👋 Goodbye! Type *hi* anytime to start again.");
+    }
 
-    // If explicit greeting/menu command — always show menu and reset session
+    const isExplicitMenu = GREETINGS.some(g =>
+      lowerMsg === g || lowerMsg.startsWith(g + " ")
+    );
+
     if (isExplicitMenu) {
       sessions.delete(from);
       return twimlResponse(MENU_TEXT);
@@ -207,7 +216,6 @@ export async function POST(req: NextRequest) {
     const agent = detectAgent(userMessage);
     const existingSession = sessions.get(from);
 
-    // If no keyword matched but user has an active session — continue with that agent
     if (agent.name === "unknown") {
       if (existingSession?.agentName && AGENT_PROMPTS[existingSession.agentName]) {
         const aiResponse = await callGemini(
@@ -221,14 +229,11 @@ export async function POST(req: NextRequest) {
         sessions.set(from, existingSession);
         return twimlResponse(`*${existingSession.agentName}*\n\n${aiResponse}\n\n_Type *menu* for other agents_`);
       }
-      // No session and no keyword match — show menu
       return twimlResponse(MENU_TEXT);
     }
 
-    // Keyword matched a specific agent
     const session = existingSession || { agentName: "", history: [] };
 
-    // If switching to a different agent, clear history
     if (session.agentName && session.agentName !== agent.name) {
       session.history = [];
     }
