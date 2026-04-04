@@ -2,12 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 
 const sessions = new Map<string, { agentName: string; history: { role: string; text: string }[] }>();
 
-interface AgentConfig {
-  name: string;
-  prompt: string;
-  isMenu?: boolean;
-}
-
 const MENU_TEXT = `🤖 *AI Agents Marketplace*
 
 Choose your assistant by typing your question:
@@ -32,13 +26,9 @@ const AGENT_PROMPTS: Record<string, string> = {
   "Career Mitra 🎯": `You are Career Mitra, an Indian career guidance assistant. Help with career, jobs, resume, interviews. Be concise (2-3 sentences max). Reply in the same language as the user.`,
 };
 
-const GREETINGS = [
-  "hi", "hello", "hey", "start", "help", "menu",
-  "bye", "goodbye", "exit", "quit",
-  "हेलो", "नमस्ते", "हाय", "namaste"
-];
+const GREETINGS = ["hi", "hello", "hey", "start", "help", "menu", "bye", "goodbye", "exit", "quit", "हेलो", "नमस्ते", "हाय", "namaste"];
 
-function detectAgent(message: string): AgentConfig {
+function detectAgent(message: string): { name: string; prompt: string; isMenu?: boolean } {
   const msg = message.toLowerCase().trim();
 
   const isGreeting = GREETINGS.some(g => msg === g || msg.startsWith(g + " ")) || msg.length <= 3;
@@ -118,15 +108,11 @@ function detectAgent(message: string): AgentConfig {
   return { name: "unknown", prompt: "", isMenu: false };
 }
 
-async function callAI(
-  userMessage: string,
-  systemPrompt: string,
-  history: { role: string; text: string }[]
-): Promise<string> {
-
-  // 👉 1. TRY GEMINI FIRST
+// ✅ DIRECT GEMINI CALL (Fallback 1)
+async function callGeminiDirect(userMessage: string, systemPrompt: string): Promise<string | null> {
   try {
-    const geminiKey = process.env.GEMINI_API_KEY_WHATSAPP;
+    const apiKey = process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY_WHATSAPP;
+    if (!apiKey) return null;
 
     const res = await fetch(
       "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
@@ -134,11 +120,12 @@ async function callAI(
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-goog-api-key": geminiKey!,
+          "x-goog-api-key": apiKey,
         },
         body: JSON.stringify({
-          contents: [{ parts: [{ text: userMessage }] }],
+          contents: [{ role: "user", parts: [{ text: userMessage }] }],
           system_instruction: { parts: [{ text: systemPrompt }] },
+          generationConfig: { maxOutputTokens: 300, temperature: 0.7 },
         }),
       }
     );
@@ -147,16 +134,18 @@ async function callAI(
       const data = await res.json();
       const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
       if (text) return text;
-    } else {
-      console.error("Gemini failed:", res.status);
     }
   } catch (err) {
-    console.error("Gemini error:", err);
+    console.error("Gemini direct error:", err);
   }
+  return null;
+}
 
-  // 👉 2. FALLBACK TO GROQ
+// ✅ DIRECT GROQ CALL (Fallback 2)
+async function callGroqDirect(userMessage: string, systemPrompt: string): Promise<string | null> {
   try {
     const groqKey = process.env.GROQ_API_KEY;
+    if (!groqKey) return null;
 
     const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
@@ -170,6 +159,7 @@ async function callAI(
           { role: "system", content: systemPrompt },
           { role: "user", content: userMessage },
         ],
+        max_tokens: 300,
       }),
     });
 
@@ -177,16 +167,18 @@ async function callAI(
       const data = await res.json();
       const text = data?.choices?.[0]?.message?.content;
       if (text) return text;
-    } else {
-      console.error("Groq failed:", res.status);
     }
   } catch (err) {
-    console.error("Groq error:", err);
+    console.error("Groq direct error:", err);
   }
+  return null;
+}
 
-  // 👉 3. FALLBACK TO MISTRAL
+// ✅ DIRECT MISTRAL CALL (Fallback 3)
+async function callMistralDirect(userMessage: string, systemPrompt: string): Promise<string | null> {
   try {
     const mistralKey = process.env.MISTRAL_API_KEY;
+    if (!mistralKey) return null;
 
     const res = await fetch("https://api.mistral.ai/v1/chat/completions", {
       method: "POST",
@@ -200,6 +192,7 @@ async function callAI(
           { role: "system", content: systemPrompt },
           { role: "user", content: userMessage },
         ],
+        max_tokens: 300,
       }),
     });
 
@@ -207,13 +200,121 @@ async function callAI(
       const data = await res.json();
       const text = data?.choices?.[0]?.message?.content;
       if (text) return text;
-    } else {
-      console.error("Mistral failed:", res.status);
     }
   } catch (err) {
-    console.error("Mistral error:", err);
+    console.error("Mistral direct error:", err);
+  }
+  return null;
+}
+
+// ✅ PRIMARY: Call /api/chat endpoint
+async function callChatAPI(userMessage: string, systemPrompt: string): Promise<string | null> {
+  try {
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 
+                    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
+
+    const response = await fetch(`${baseUrl}/api/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        messages: [{ role: "user", content: userMessage }],
+        system: systemPrompt
+      }),
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      return data.reply || null;
+    }
+  } catch (err) {
+    console.error("Chat API error:", err);
+  }
+  return null;
+}
+
+// ✅ MAIN AI FUNCTION WITH FALLBACKS
+async function getAIResponse(userMessage: string, systemPrompt: string): Promise<string> {
+  console.log("🤖 Getting AI response for:", userMessage.substring(0, 50));
+  
+  // Try 1: Call internal /api/chat endpoint
+  let response = await callChatAPI(userMessage, systemPrompt);
+  if (response) {
+    console.log("✅ Response from /api/chat");
+    return response;
+  }
+  console.log("⚠️ /api/chat failed, trying Gemini direct...");
+
+  // Try 2: Direct Gemini
+  response = await callGeminiDirect(userMessage, systemPrompt);
+  if (response) {
+    console.log("✅ Response from Gemini direct");
+    return response;
+  }
+  console.log("⚠️ Gemini direct failed, trying Groq...");
+
+  // Try 3: Direct Groq
+  response = await callGroqDirect(userMessage, systemPrompt);
+  if (response) {
+    console.log("✅ Response from Groq direct");
+    return response;
+  }
+  console.log("⚠️ Groq failed, trying Mistral...");
+
+  // Try 4: Direct Mistral
+  response = await callMistralDirect(userMessage, systemPrompt);
+  if (response) {
+    console.log("✅ Response from Mistral direct");
+    return response;
   }
 
-  // ❌ ALL FAILED
-  return "⚠️ All AI services are busy. Please try again in a moment.";
+  // All failed
+  console.log("❌ All AI services failed");
+  return "⚠️ All AI services are currently busy. Please try again in a moment.";
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const formData = await req.formData();
+    const userMessage = (formData.get("Body") as string) || "";
+    const from = (formData.get("From") as string) || "";
+
+    if (!userMessage.trim()) {
+      return new NextResponse(
+        `<?xml version="1.0" encoding="UTF-8"?><Response><Message>Please send a message!</Message></Response>`,
+        { headers: { "Content-Type": "text/xml" } }
+      );
+    }
+
+    const agent = detectAgent(userMessage);
+    
+    // If menu or unknown, just show menu
+    if (agent.isMenu || agent.name === "unknown") {
+      const twiml = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Message>${MENU_TEXT.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</Message>
+</Response>`;
+      return new NextResponse(twiml, { headers: { "Content-Type": "text/xml" } });
+    }
+
+    // Get AI response with fallbacks
+    const aiResponse = await getAIResponse(userMessage, agent.prompt);
+
+    const finalResponse = `*${agent.name}*\n\n${aiResponse}\n\n_Powered by AI Agents Marketplace_`;
+
+    const twiml = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Message>${finalResponse.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</Message>
+</Response>`;
+
+    return new NextResponse(twiml, {
+      headers: { "Content-Type": "text/xml" },
+    });
+
+  } catch (error) {
+    console.error("WhatsApp webhook error:", error);
+    return new NextResponse(
+      `<?xml version="1.0" encoding="UTF-8"?><Response><Message>Sorry, something went wrong. Please try again!</Message></Response>`,
+      { headers: { "Content-Type": "text/xml" } }
+    );
+  }
 }
