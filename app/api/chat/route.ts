@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
     };
 
     // FIX: Update to a 2026-active model ID
-    const model = "gemini-2.5-flash"; 
+    const model = "gemini-1.5-flash"; 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse`;
 
     const geminiRes = await fetch(url, {
