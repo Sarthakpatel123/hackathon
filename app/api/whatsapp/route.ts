@@ -120,10 +120,10 @@ async function callGemini(
   systemPrompt: string,
   history: { role: string; text: string }[]
 ): Promise<string> {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY_WHATSAPP;
   if (!apiKey) return "Service unavailable. Please try again later.";
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent`;
 
   const recentHistory = history.slice(-4);
   const contents = [
