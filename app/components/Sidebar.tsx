@@ -108,7 +108,7 @@ export default function Sidebar({ user, activeCategory = "All", onCategoryChange
                   <path d="M10 3V5M10 15V17M3 10H5M15 10H17M5.05 5.05L6.46 6.46M13.54 13.54L14.95 14.95M5.05 14.95L6.46 13.54M13.54 6.46L14.95 5.05" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
                 </svg>
               </div>
-              <span className="sb-brand-name">AI Agents</span>
+              <span className="sb-brand-name">MARGDARSHAK</span>
             </a>
           )}
           {!collapsed && (
