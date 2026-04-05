@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface SidebarProps {
   user?: { name: string; email: string } | null;
@@ -30,7 +30,27 @@ const navItems = [
 
 export default function Sidebar({ user, activeCategory = "All", onCategoryChange, recentAgents = [], activeNav = 0, onNavChange }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const avatarLetter = user?.name?.charAt(0).toUpperCase() || "?";
+
+  // Close sidebar on mobile when route changes or ESC pressed
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => { if (e.key === "Escape") setMobileOpen(false); };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, []);
+
+  // Prevent body scroll when mobile sidebar is open
+  useEffect(() => {
+    if (mobileOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => { document.body.style.overflow = ""; };
+  }, [mobileOpen]);
+
+  const closeMobile = () => setMobileOpen(false);
 
   return (
     <>
@@ -41,9 +61,46 @@ export default function Sidebar({ user, activeCategory = "All", onCategoryChange
           --sb-text: #e8e6df; --sb-muted: #888780;
           --sb-accent: #5DCAA5; --sb-accent2: #1D9E75; --sb-accent-bg: rgba(93,202,165,0.10);
         }
-        .sb { min-height:100vh; background:var(--sb-bg); border-right:0.5px solid var(--sb-border); display:flex; flex-direction:column; font-family:'DM Sans',sans-serif; flex-shrink:0; transition: width 0.2s ease; overflow:hidden; }
-        .sb.open  { width:240px; }
-        .sb.closed { width:60px; }
+
+        /* Hamburger button — only visible on mobile */
+        .sb-hamburger {
+          display: none;
+          position: fixed;
+          top: 14px;
+          left: 14px;
+          z-index: 60;
+          width: 38px; height: 38px;
+          background: #1a1a18;
+          border: 0.5px solid rgba(255,255,255,0.12);
+          border-radius: 9px;
+          align-items: center; justify-content: center;
+          cursor: pointer;
+          color: #e8e6df;
+        }
+
+        /* Overlay backdrop — mobile only */
+        .sb-backdrop {
+          display: none;
+          position: fixed; inset: 0;
+          background: rgba(0,0,0,0.6);
+          z-index: 40;
+        }
+
+        /* Sidebar base */
+        .sb {
+          min-height: 100vh;
+          background: var(--sb-bg);
+          border-right: 0.5px solid var(--sb-border);
+          display: flex; flex-direction: column;
+          font-family: 'DM Sans', sans-serif;
+          flex-shrink: 0;
+          transition: width 0.2s ease;
+          overflow: hidden;
+          z-index: 50;
+        }
+        .sb.open  { width: 240px; }
+        .sb.closed { width: 60px; }
+
         .sb-top { display:flex; align-items:center; justify-content:space-between; padding:18px 16px 14px; border-bottom:0.5px solid var(--sb-border); flex-shrink:0; }
         .sb.closed .sb-top { justify-content:center; padding:18px 0 14px; }
         .sb-brand { display:flex; align-items:center; gap:9px; text-decoration:none; overflow:hidden; }
@@ -93,11 +150,42 @@ export default function Sidebar({ user, activeCategory = "All", onCategoryChange
         .sb-expand-btn { display:none; }
         .sb.closed .sb-expand-btn { display:flex; width:30px; height:30px; background:transparent; border:none; border-radius:7px; align-items:center; justify-content:center; cursor:pointer; color:var(--sb-muted); margin: 14px auto 10px; }
         .sb.closed .sb-expand-btn:hover { background:var(--sb-bg2); color:var(--sb-text); }
+
+        /* ── Mobile styles ── */
+        @media (max-width: 768px) {
+          .sb-hamburger { display: flex; }
+
+          .sb-backdrop.open { display: block; }
+
+          .sb {
+            position: fixed;
+            top: 0; left: 0;
+            height: 100vh;
+            width: 240px !important;
+            transform: translateX(-100%);
+            transition: transform 0.25s ease;
+          }
+          .sb.mobile-open {
+            transform: translateX(0);
+          }
+        }
       `}</style>
 
       <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet" />
 
-      <aside className={`sb ${collapsed ? "closed" : "open"}`}>
+      {/* Hamburger — mobile only */}
+      <button className="sb-hamburger" onClick={() => setMobileOpen(true)} aria-label="Open menu">
+        <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+          <line x1="3" y1="6" x2="17" y2="6"/>
+          <line x1="3" y1="10" x2="17" y2="10"/>
+          <line x1="3" y1="14" x2="17" y2="14"/>
+        </svg>
+      </button>
+
+      {/* Backdrop */}
+      <div className={`sb-backdrop ${mobileOpen ? "open" : ""}`} onClick={closeMobile} />
+
+      <aside className={`sb ${collapsed ? "closed" : "open"} ${mobileOpen ? "mobile-open" : ""}`}>
         {/* Top bar */}
         <div className="sb-top">
           {!collapsed && (
@@ -120,7 +208,6 @@ export default function Sidebar({ user, activeCategory = "All", onCategoryChange
           )}
         </div>
 
-        {/* Expand button when collapsed */}
         {collapsed && (
           <button className="sb-expand-btn" onClick={() => setCollapsed(false)}>
             <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
@@ -135,7 +222,7 @@ export default function Sidebar({ user, activeCategory = "All", onCategoryChange
             <button
               key={i}
               className={`sb-nav-item${activeNav === i ? " active" : ""}`}
-              onClick={() => onNavChange?.(i)}
+              onClick={() => { onNavChange?.(i); closeMobile(); }}
               title={collapsed ? item.label : undefined}
             >
               <NavIcon index={i} />
@@ -152,7 +239,7 @@ export default function Sidebar({ user, activeCategory = "All", onCategoryChange
           {categories.map((cat, i) => (
             <button key={i}
               className={`sb-cat-item${activeCategory === cat.label ? " active" : ""}`}
-              onClick={() => onCategoryChange?.(cat.label)}>
+              onClick={() => { onCategoryChange?.(cat.label); closeMobile(); }}>
               <span className="sb-cat-emoji">{cat.emoji}</span>
               {cat.label}
               <span className="sb-cat-count">{cat.count}</span>
