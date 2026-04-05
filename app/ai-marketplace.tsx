@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, createContext, useContext } from "react";
+import Sidebar from "@/app/components/Sidebar";
 import { auth } from "@/lib/firebase";
 import {
   signInWithEmailAndPassword,
@@ -588,14 +589,14 @@ function AgentPanel({ agent, onClose }: { agent: Agent; onClose: () => void }) {
     }
   }
 
-  useEffect(() => {
-    if (outputRef.current) {
-      const { scrollTop, scrollHeight, clientHeight } = outputRef.current;
-      if (scrollHeight - scrollTop - clientHeight < 100) {
-        outputRef.current.scrollTop = outputRef.current.scrollHeight;
-      }
-    }
-  }, [messages, loading]);
+ useEffect(() => {
+  const el = outputRef.current;
+  if (!el) return;
+
+  if (el.scrollHeight - el.scrollTop - el.clientHeight < 100) {
+    el.scrollTop = el.scrollHeight;
+  }
+}, [messages, loading]);
 
   useEffect(() => {
     return () => {
@@ -962,7 +963,6 @@ function AgentBuilderModal({ isOpen, onClose, onCreated }: { isOpen: boolean; on
       return;
     }
 
-    // Convert DB row to Agent type
     const newAgent: Agent = {
       id: data.id,
       name: data.name,
@@ -1198,126 +1198,131 @@ useEffect(() => {
     if (!user) { setShowAuthModal(true); } else { setActiveAgent(agent); }
   };
 
+  // ── ONLY CHANGE: wrapped existing return in <Sidebar> + flex container ──
   return (
-    <div style={{ fontFamily: "'Inter', 'Syne', sans-serif", background: "radial-gradient(circle at 0% 0%, #0a0a0f 0%, #050508 100%)", minHeight: "100vh", color: "#f0eeff" }}>
-      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet" />
+    <div style={{ display: "flex" }}>
+      <Sidebar />
+      <div style={{ flex: 1, fontFamily: "'Inter', 'Syne', sans-serif", background: "radial-gradient(circle at 0% 0%, #0a0a0f 0%, #050508 100%)", minHeight: "100vh", color: "#f0eeff" }}>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet" />
 
-      {/* ── WhatsApp keyframes ── */}
-      <style>{`
-        @keyframes wapulse {
-          0% { transform: scale(1); opacity: 0.6; }
-          100% { transform: scale(1.6); opacity: 0; }
-        }
-        @keyframes waslide {
-          from { opacity: 0; transform: translateX(10px); }
-          to   { opacity: 1; transform: translateX(0); }
-        }
-      `}</style>
+        {/* ── WhatsApp keyframes ── */}
+        <style>{`
+          @keyframes wapulse {
+            0% { transform: scale(1); opacity: 0.6; }
+            100% { transform: scale(1.6); opacity: 0; }
+          }
+          @keyframes waslide {
+            from { opacity: 0; transform: translateX(10px); }
+            to   { opacity: 1; transform: translateX(0); }
+          }
+        `}</style>
 
-      {/* Navbar */}
-      <div style={{ position: "sticky", top: 0, zIndex: 100, backdropFilter: "blur(20px)", background: "rgba(5,5,8,0.8)", borderBottom: "1px solid rgba(255,255,255,0.05)", padding: "12px 24px" }}>
-        <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div style={{ fontSize: 20, fontWeight: 800, background: "linear-gradient(135deg, #fff 0%, #c8b8ff 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>🤖 AI Agents</div>
-          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-            {user ? <UserMenu /> : (
-              <button onClick={() => setShowAuthModal(true)} style={{ padding: "8px 20px", borderRadius: 40, border: "1px solid rgba(255,255,255,0.2)", background: "linear-gradient(135deg, #7c5cbf 0%, #5a3d8f 100%)", color: "#fff", cursor: "pointer", fontSize: 13, fontWeight: 600 }}>Login / Signup</button>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Hero */}
-      <div style={{ textAlign: "center", padding: "64px 24px 48px", position: "relative" }}>
-        <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 80% 50% at 50% 0%, rgba(100,60,200,0.15) 0%, transparent 70%)", pointerEvents: "none" }} />
-        <div style={{ fontSize: 12, letterSpacing: "0.3em", color: "rgba(255,255,255,0.35)", marginBottom: 20 }}>✨ AI AGENTS MARKETPLACE ✨</div>
-        <h1 style={{ fontSize: "clamp(36px, 8vw, 56px)", fontWeight: 800, margin: "0 0 16px", background: "linear-gradient(135deg, #ffffff 0%, rgba(200,180,255,0.9) 50%, rgba(124,92,191,0.8) 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Specialized AI agents<br />for every need</h1>
-        <p style={{ fontSize: "clamp(14px, 4vw, 16px)", color: "rgba(255,255,255,0.45)", margin: "0 0 40px" }}>Discover, run, and build with purpose-built AI agents<br />Powered by Gemini AI</p>
-
-        <div style={{ display: "flex", gap: 32, justifyContent: "center", marginBottom: 40, flexWrap: "wrap" }}>
-          {[{ val: AGENTS.length, label: "🤖 Agents" }, { val: totalRuns.toLocaleString(), label: "⚡ Total Runs" }, { val: CATEGORIES.length - 1, label: "🎯 Categories" }].map((stat, i) => (
-            <div key={i} style={{ background: "rgba(255,255,255,0.03)", padding: "12px 24px", borderRadius: 40, border: "1px solid rgba(255,255,255,0.08)" }}>
-              <div style={{ fontSize: 28, fontWeight: 800 }}>{stat.val}</div>
-              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)" }}>{stat.label}</div>
+        {/* Navbar */}
+        <div style={{ position: "sticky", top: 0, zIndex: 100, backdropFilter: "blur(20px)", background: "rgba(5,5,8,0.8)", borderBottom: "1px solid rgba(255,255,255,0.05)", padding: "12px 24px" }}>
+          <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ fontSize: 20, fontWeight: 800, background: "linear-gradient(135deg, #fff 0%, #c8b8ff 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>🤖 AI Agents</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+              {user ? <UserMenu /> : (
+                <button onClick={() => setShowAuthModal(true)} style={{ padding: "8px 20px", borderRadius: 40, border: "1px solid rgba(255,255,255,0.2)", background: "linear-gradient(135deg, #7c5cbf 0%, #5a3d8f 100%)", color: "#fff", cursor: "pointer", fontSize: 13, fontWeight: 600 }}>Login / Signup</button>
+              )}
             </div>
-          ))}
-        </div>
-
-        <div style={{ maxWidth: 520, margin: "0 auto" }}>
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="🔍 Search agents..."
-            style={{ width: "100%", padding: "14px 20px", borderRadius: 60, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.05)", color: "#fff", fontSize: 14, outline: "none" }} />
-        </div>
-      </div>
-
-      {/* Category Filters */}
-      <div style={{ display: "flex", gap: 10, padding: "0 24px 32px", justifyContent: "center", flexWrap: "wrap" }}>
-        {CATEGORIES.map((cat) => {
-          const active = category === cat;
-          const cc = CAT_COLORS[cat];
-          return (
-            <button key={cat} onClick={() => setCategory(cat)}
-              style={{ fontSize: 13, padding: "8px 22px", borderRadius: 40, border: active && cc ? `1.5px solid ${cc.border}` : "1px solid rgba(255,255,255,0.1)", background: active && cc ? cc.bg : active ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.03)", color: active && cc ? cc.text : active ? "#fff" : "rgba(255,255,255,0.5)", cursor: "pointer", fontFamily: "inherit", fontWeight: active ? 600 : 500 }}>
-              {cat === "All" ? "🎯 All" : cat}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Agent Grid */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 20, padding: "0 24px 60px", maxWidth: 1200, margin: "0 auto" }}>
-        {filtered.length === 0 ? (
-          <div style={{ gridColumn: "1/-1", textAlign: "center", padding: "80px 20px" }}>
-            <div style={{ fontSize: 48, marginBottom: 16, opacity: 0.3 }}>🔍</div>
-            <p style={{ fontSize: 16, color: "rgba(255,255,255,0.35)" }}>No agents found for "{search}"</p>
-            <button onClick={() => { setSearch(""); setCategory("All"); }} style={{ marginTop: 16, padding: "8px 20px", borderRadius: 40, border: "1px solid rgba(255,255,255,0.2)", background: "rgba(255,255,255,0.05)", color: "#fff", cursor: "pointer" }}>Clear filters</button>
-          </div>
-        ) : (
-          filtered.map((agent, i) => <AgentCard key={agent.id} agent={agent} index={i} onTry={handleTryAgent} />)
-        )}
-      </div>
-
-      {/* Footer */}
-      <div style={{ textAlign: "center", padding: "48px 24px 64px", borderTop: "1px solid rgba(255,255,255,0.05)", background: "linear-gradient(180deg, transparent 0%, rgba(124,92,191,0.05) 100%)" }}>
-        <p style={{ fontSize: 15,  color: "rgba(255,255,255,0.4)", marginBottom: 20 }}>🚀 Have a specialized agent to share?</p>
-      <button 
-  onClick={() => user ? setShowBuilder(true) : setShowAuthModal(true)}
-  style={{ padding: "12px 32px", borderRadius: 40, border: "1px solid rgba(255,255,255,0.15)", background: "linear-gradient(135deg, rgba(124,92,191,0.2) 0%, rgba(124,92,191,0.05) 100%)", color: "rgba(255,255,255,0.8)", cursor: "pointer", fontSize: 14, fontWeight: 600 }}>
-  🧠 Build Your Own Agent →
-</button></div>
-
-      {activeAgent && <AgentPanel agent={activeAgent} onClose={() => setActiveAgent(null)} />}
-      <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} onSuccess={() => {}} />
-<PasswordResetModal />
-<AgentBuilderModal 
-  isOpen={showBuilder} 
-  onClose={() => setShowBuilder(false)} 
-  onCreated={(agent) => { setCustomAgents((prev) => [agent, ...prev]); setActiveAgent(agent); }}
-/>
-
-      {/* ── WhatsApp Floating Button ── */}
-      <a
-        href="https://wa.me/14155238886?text=hi"
-        target="_blank"
-        rel="noopener noreferrer"
-        onMouseEnter={() => setShowWATooltip(true)}
-        onMouseLeave={() => setShowWATooltip(false)}
-        style={{ position: "fixed", bottom: 28, right: 28, display: "flex", alignItems: "center", gap: 12, textDecoration: "none", zIndex: 9999 }}
-      >
-        {showWATooltip && (
-          <div style={{ background: "#1a1a2e", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 14, padding: "10px 14px", animation: "waslide 0.2s ease" }}>
-            <p style={{ margin: "0 0 2px", fontSize: 13, fontWeight: 600, color: "#fff" }}>Chat with us on WhatsApp</p>
-            <p style={{ margin: 0, fontSize: 11, color: "rgba(255,255,255,0.5)" }}>Ask our AI agents anything</p>
-          </div>
-        )}
-        <div style={{ position: "relative", width: 56, height: 56 }}>
-          <div style={{ position: "absolute", inset: 0, borderRadius: "50%", background: "#25D366", animation: "wapulse 1.8s ease-out infinite" }} />
-          <div style={{ position: "relative", width: 56, height: 56, borderRadius: "50%", background: "#25D366", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="white">
-              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
-            </svg>
           </div>
         </div>
-      </a>
 
+        {/* Hero */}
+        <div style={{ textAlign: "center", padding: "64px 24px 48px", position: "relative" }}>
+          <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 80% 50% at 50% 0%, rgba(100,60,200,0.15) 0%, transparent 70%)", pointerEvents: "none" }} />
+          <div style={{ fontSize: 12, letterSpacing: "0.3em", color: "rgba(255,255,255,0.35)", marginBottom: 20 }}>✨ AI AGENTS MARKETPLACE ✨</div>
+          <h1 style={{ fontSize: "clamp(36px, 8vw, 56px)", fontWeight: 800, margin: "0 0 16px", background: "linear-gradient(135deg, #ffffff 0%, rgba(200,180,255,0.9) 50%, rgba(124,92,191,0.8) 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Specialized AI agents<br />for every need</h1>
+          <p style={{ fontSize: "clamp(14px, 4vw, 16px)", color: "rgba(255,255,255,0.45)", margin: "0 0 40px" }}>Discover, run, and build with purpose-built AI agents<br />Powered by Gemini AI</p>
+
+          <div style={{ display: "flex", gap: 32, justifyContent: "center", marginBottom: 40, flexWrap: "wrap" }}>
+            {[{ val: AGENTS.length, label: "🤖 Agents" }, { val: totalRuns.toLocaleString(), label: "⚡ Total Runs" }, { val: CATEGORIES.length - 1, label: "🎯 Categories" }].map((stat, i) => (
+              <div key={i} style={{ background: "rgba(255,255,255,0.03)", padding: "12px 24px", borderRadius: 40, border: "1px solid rgba(255,255,255,0.08)" }}>
+                <div style={{ fontSize: 28, fontWeight: 800 }}>{stat.val}</div>
+                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)" }}>{stat.label}</div>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ maxWidth: 520, margin: "0 auto" }}>
+            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="🔍 Search agents..."
+              style={{ width: "100%", padding: "14px 20px", borderRadius: 60, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.05)", color: "#fff", fontSize: 14, outline: "none" }} />
+          </div>
+        </div>
+
+        {/* Category Filters */}
+        <div style={{ display: "flex", gap: 10, padding: "0 24px 32px", justifyContent: "center", flexWrap: "wrap" }}>
+          {CATEGORIES.map((cat) => {
+            const active = category === cat;
+            const cc = CAT_COLORS[cat];
+            return (
+              <button key={cat} onClick={() => setCategory(cat)}
+                style={{ fontSize: 13, padding: "8px 22px", borderRadius: 40, border: active && cc ? `1.5px solid ${cc.border}` : "1px solid rgba(255,255,255,0.1)", background: active && cc ? cc.bg : active ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.03)", color: active && cc ? cc.text : active ? "#fff" : "rgba(255,255,255,0.5)", cursor: "pointer", fontFamily: "inherit", fontWeight: active ? 600 : 500 }}>
+                {cat === "All" ? "🎯 All" : cat}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Agent Grid */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 20, padding: "0 24px 60px", maxWidth: 1200, margin: "0 auto" }}>
+          {filtered.length === 0 ? (
+            <div style={{ gridColumn: "1/-1", textAlign: "center", padding: "80px 20px" }}>
+              <div style={{ fontSize: 48, marginBottom: 16, opacity: 0.3 }}>🔍</div>
+              <p style={{ fontSize: 16, color: "rgba(255,255,255,0.35)" }}>No agents found for "{search}"</p>
+              <button onClick={() => { setSearch(""); setCategory("All"); }} style={{ marginTop: 16, padding: "8px 20px", borderRadius: 40, border: "1px solid rgba(255,255,255,0.2)", background: "rgba(255,255,255,0.05)", color: "#fff", cursor: "pointer" }}>Clear filters</button>
+            </div>
+          ) : (
+            filtered.map((agent, i) => <AgentCard key={agent.id} agent={agent} index={i} onTry={handleTryAgent} />)
+          )}
+        </div>
+
+        {/* Footer */}
+        <div style={{ textAlign: "center", padding: "48px 24px 64px", borderTop: "1px solid rgba(255,255,255,0.05)", background: "linear-gradient(180deg, transparent 0%, rgba(124,92,191,0.05) 100%)" }}>
+          <p style={{ fontSize: 15,  color: "rgba(255,255,255,0.4)", marginBottom: 20 }}>🚀 Have a specialized agent to share?</p>
+          <button
+            onClick={() => user ? setShowBuilder(true) : setShowAuthModal(true)}
+            style={{ padding: "12px 32px", borderRadius: 40, border: "1px solid rgba(255,255,255,0.15)", background: "linear-gradient(135deg, rgba(124,92,191,0.2) 0%, rgba(124,92,191,0.05) 100%)", color: "rgba(255,255,255,0.8)", cursor: "pointer", fontSize: 14, fontWeight: 600 }}>
+            🧠 Build Your Own Agent →
+          </button>
+        </div>
+
+        {activeAgent && <AgentPanel agent={activeAgent} onClose={() => setActiveAgent(null)} />}
+        <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} onSuccess={() => {}} />
+        <PasswordResetModal />
+        <AgentBuilderModal
+          isOpen={showBuilder}
+          onClose={() => setShowBuilder(false)}
+          onCreated={(agent) => { setCustomAgents((prev) => [agent, ...prev]); setActiveAgent(agent); }}
+        />
+
+        {/* ── WhatsApp Floating Button ── */}
+        <a
+          href="https://wa.me/14155238886?text=hi"
+          target="_blank"
+          rel="noopener noreferrer"
+          onMouseEnter={() => setShowWATooltip(true)}
+          onMouseLeave={() => setShowWATooltip(false)}
+          style={{ position: "fixed", bottom: 28, right: 28, display: "flex", alignItems: "center", gap: 12, textDecoration: "none", zIndex: 9999 }}
+        >
+          {showWATooltip && (
+            <div style={{ background: "#1a1a2e", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 14, padding: "10px 14px", animation: "waslide 0.2s ease" }}>
+              <p style={{ margin: "0 0 2px", fontSize: 13, fontWeight: 600, color: "#fff" }}>Chat with us on WhatsApp</p>
+              <p style={{ margin: 0, fontSize: 11, color: "rgba(255,255,255,0.5)" }}>Ask our AI agents anything</p>
+            </div>
+          )}
+          <div style={{ position: "relative", width: 56, height: 56 }}>
+            <div style={{ position: "absolute", inset: 0, borderRadius: "50%", background: "#25D366", animation: "wapulse 1.8s ease-out infinite" }} />
+            <div style={{ position: "relative", width: 56, height: 56, borderRadius: "50%", background: "#25D366", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="white">
+                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+              </svg>
+            </div>
+          </div>
+        </a>
+
+      </div>
     </div>
   );
 }
