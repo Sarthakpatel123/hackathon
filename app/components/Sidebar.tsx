@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 interface SidebarProps {
   user?: { name: string; email: string } | null;
@@ -30,9 +31,9 @@ const navItems = [
 
 export default function Sidebar({ user, activeCategory = "All", onCategoryChange, recentAgents = [], activeNav = 0, onNavChange }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
-  // FIX 1: closed by default on mobile
   const [mobileOpen, setMobileOpen] = useState(false);
   const avatarLetter = user?.name?.charAt(0).toUpperCase() || "?";
+  const router = useRouter();
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => { if (e.key === "Escape") setMobileOpen(false); };
@@ -50,7 +51,6 @@ export default function Sidebar({ user, activeCategory = "All", onCategoryChange
   }, [mobileOpen]);
 
   const closeMobile = () => setMobileOpen(false);
-  // FIX 2: toggle open/close
   const toggleMobile = () => setMobileOpen(prev => !prev);
 
   return (
@@ -63,7 +63,6 @@ export default function Sidebar({ user, activeCategory = "All", onCategoryChange
           --sb-accent: #5DCAA5; --sb-accent2: #1D9E75; --sb-accent-bg: rgba(93,202,165,0.10);
         }
 
-        /* FIX 2: Hamburger toggles — only visible on mobile */
         .sb-hamburger {
           display: none;
           position: fixed;
@@ -79,7 +78,6 @@ export default function Sidebar({ user, activeCategory = "All", onCategoryChange
           color: #e8e6df;
         }
 
-        /* Overlay backdrop — mobile only */
         .sb-backdrop {
           display: none;
           position: fixed; inset: 0;
@@ -87,7 +85,6 @@ export default function Sidebar({ user, activeCategory = "All", onCategoryChange
           z-index: 140;
         }
 
-        /* Sidebar base */
         .sb {
           min-height: 100vh;
           background: var(--sb-bg);
@@ -152,14 +149,33 @@ export default function Sidebar({ user, activeCategory = "All", onCategoryChange
         .sb.closed .sb-expand-btn { display:flex; width:30px; height:30px; background:transparent; border:none; border-radius:7px; align-items:center; justify-content:center; cursor:pointer; color:var(--sb-muted); margin: 14px auto 10px; }
         .sb.closed .sb-expand-btn:hover { background:var(--sb-bg2); color:var(--sb-text); }
 
-        /* FIX 4: hide the desktop collapse toggle button inside sidebar on mobile */
-        /* FIX 5: sidebar z-index higher than navbar (navbar is z:100, sidebar is z:150) */
+        .sb-zindagi {
+          margin: 10px 10px 0;
+          display: flex;
+          align-items: center;
+          gap: 9px;
+          padding: 9px 10px;
+          border-radius: 8px;
+          background: rgba(93,202,165,0.08);
+          border: 0.5px solid rgba(93,202,165,0.20);
+          cursor: pointer;
+          font-size: 13px;
+          color: var(--sb-accent);
+          font-family: 'DM Sans', sans-serif;
+          width: calc(100% - 20px);
+          text-align: left;
+          transition: background .15s;
+        }
+        .sb-zindagi:hover { background: rgba(93,202,165,0.15); }
+        .sb.closed .sb-zindagi { justify-content:center; width: calc(100% - 12px); margin: 10px 6px 0; padding: 9px 0; }
+        .sb-zindagi-label { white-space: nowrap; font-weight: 500; }
+        .sb.closed .sb-zindagi-label { display: none; }
+        .sb-zindagi-badge { margin-left: auto; font-size: 10px; padding: 1px 6px; border-radius: 10px; background: rgba(93,202,165,0.15); color: var(--sb-accent); border: 0.5px solid rgba(93,202,165,0.3); white-space: nowrap; }
+        .sb.closed .sb-zindagi-badge { display: none; }
+
         @media (max-width: 768px) {
           .sb-hamburger { display: flex; }
-
           .sb-backdrop.open { display: block; }
-
-          /* FIX 3: sidebar is fixed overlay, not part of flow */
           .sb {
             position: fixed;
             top: 0; left: 0;
@@ -169,11 +185,7 @@ export default function Sidebar({ user, activeCategory = "All", onCategoryChange
             transition: transform 0.25s ease;
             z-index: 150;
           }
-          .sb.mobile-open {
-            transform: translateX(0);
-          }
-
-          /* FIX 4: hide the desktop collapse/expand toggle inside sidebar on mobile — hamburger is enough */
+          .sb.mobile-open { transform: translateX(0); }
           .sb-icon-btn.toggle { display: none !important; }
           .sb-expand-btn { display: none !important; }
         }
@@ -181,7 +193,6 @@ export default function Sidebar({ user, activeCategory = "All", onCategoryChange
 
       <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet" />
 
-      {/* FIX 2: hamburger toggles open AND close */}
       <button className="sb-hamburger" onClick={toggleMobile} aria-label="Toggle menu">
         <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
           <line x1="3" y1="6" x2="17" y2="6"/>
@@ -190,11 +201,9 @@ export default function Sidebar({ user, activeCategory = "All", onCategoryChange
         </svg>
       </button>
 
-      {/* Backdrop — clicking outside closes sidebar */}
       <div className={`sb-backdrop ${mobileOpen ? "open" : ""}`} onClick={closeMobile} />
 
       <aside className={`sb ${collapsed ? "closed" : "open"} ${mobileOpen ? "mobile-open" : ""}`}>
-        {/* Top bar — FIX 4: no extra close button, only brand + desktop collapse toggle */}
         <div className="sb-top">
           {!collapsed && (
             <a className="sb-brand" href="/">
@@ -207,7 +216,6 @@ export default function Sidebar({ user, activeCategory = "All", onCategoryChange
               <span className="sb-brand-name">MARGDARSHAK</span>
             </a>
           )}
-          {/* Desktop-only collapse toggle — hidden on mobile via CSS */}
           {!collapsed && (
             <button className="sb-icon-btn toggle" onClick={() => setCollapsed(true)}>
               <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
@@ -217,7 +225,6 @@ export default function Sidebar({ user, activeCategory = "All", onCategoryChange
           )}
         </div>
 
-        {/* Desktop-only expand button when collapsed — hidden on mobile via CSS */}
         {collapsed && (
           <button className="sb-expand-btn" onClick={() => setCollapsed(false)}>
             <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
@@ -242,6 +249,20 @@ export default function Sidebar({ user, activeCategory = "All", onCategoryChange
             </button>
           ))}
         </nav>
+
+        {/* Zindagi Dashboard button — added here, nothing else changed */}
+        <button
+          className="sb-zindagi"
+          onClick={() => { router.push("/zindagi"); closeMobile(); }}
+          title={collapsed ? "Zindagi Dashboard" : undefined}
+        >
+          <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M10 2L3 7v11h5v-5h4v5h5V7z"/>
+            <circle cx="10" cy="11" r="2" fill="currentColor" stroke="none"/>
+          </svg>
+          <span className="sb-zindagi-label">Zindagi Dashboard</span>
+          <span className="sb-zindagi-badge">New</span>
+        </button>
 
         {/* Categories */}
         <div className="sb-section">
