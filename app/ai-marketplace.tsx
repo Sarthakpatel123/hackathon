@@ -1155,7 +1155,7 @@ function MarketplaceContent() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const { user } = useAuth();
   const [showBuilder, setShowBuilder] = useState(false);
-  const [showWATooltip, setShowWATooltip] = useState(true); // ← ADDED
+  const [showWATooltip, setShowWATooltip] = useState(false); // ← ADDED
   const [customAgents, setCustomAgents] = useState<Agent[]>([]);
   // ── CHANGE 1: new state ──
   const [activeView, setActiveView] = useState(0);
