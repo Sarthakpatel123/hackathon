@@ -270,7 +270,7 @@ function AuthModal({ isOpen, onClose, onSuccess }: { isOpen: boolean; onClose: (
 
   const modeConfig = {
     login:  { emoji: "👋", title: "Welcome Back",   subtitle: "Login to access all agents" },
-    signup: { emoji: "✨", title: "Create Account",  subtitle: "Join the AI Agents Marketplace" },
+    signup: { emoji: "✨", title: "Create Account",  subtitle: "Join the MARGDARSHAK Marketplace" },
     forgot: { emoji: "🔑", title: "Reset Password",  subtitle: "We'll send a reset link to your email" },
   };
   const cfg = modeConfig[mode];
@@ -1250,7 +1250,7 @@ useEffect(() => {
         {/* Navbar */}
         <div style={{ position: "sticky", top: 0, zIndex: 100, backdropFilter: "blur(20px)", background: "rgba(5,5,8,0.8)", borderBottom: "1px solid rgba(255,255,255,0.05)", padding: "12px 24px" }}>
           <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <div style={{ fontSize: 20, fontWeight: 800, background: "linear-gradient(135deg, #fff 0%, #c8b8ff 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>🤖 AI Agents</div>
+            <div style={{ fontSize: 20, fontWeight: 800, background: "linear-gradient(135deg, #fff 0%, #c8b8ff 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>🤖 MARGDARSHAK</div>
             <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
               {user ? <UserMenu /> : (
                 <button onClick={() => setShowAuthModal(true)} style={{ padding: "8px 20px", borderRadius: 40, border: "1px solid rgba(255,255,255,0.2)", background: "linear-gradient(135deg, #7c5cbf 0%, #5a3d8f 100%)", color: "#fff", cursor: "pointer", fontSize: 13, fontWeight: 600 }}>Login / Signup</button>
