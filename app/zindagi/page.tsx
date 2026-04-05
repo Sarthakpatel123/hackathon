@@ -3,8 +3,8 @@
 // Main page — orchestrates Zindagi Dashboard + Scheme Radar flow
 
 import { useState } from "react";
-import ZindagiProfileForm from "@/components/ZindagiProfileForm";
-import SchemeRadar from "@/components/SchemeRadar";
+import ZindagiProfileForm from "@/app/components/ZindagiProfileForm";
+import SchemeRadar from "@/app/components/SchemeRadar";
 import { ZindagiProfile } from "@/lib/zindagi";
 
 type Step = "profile" | "radar";
