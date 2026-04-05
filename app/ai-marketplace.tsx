@@ -1201,7 +1201,12 @@ useEffect(() => {
   // ── ONLY CHANGE: wrapped existing return in <Sidebar> + flex container ──
   return (
     <div style={{ display: "flex" }}>
-      <Sidebar />
+      <Sidebar
+  user={user}
+  activeCategory={category}
+  onCategoryChange={(cat) => setCategory(cat === "All" ? "All" : cat)}
+  recentAgents={[]}
+/>
       <div style={{ flex: 1, fontFamily: "'Inter', 'Syne', sans-serif", background: "radial-gradient(circle at 0% 0%, #0a0a0f 0%, #050508 100%)", minHeight: "100vh", color: "#f0eeff" }}>
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet" />
 
