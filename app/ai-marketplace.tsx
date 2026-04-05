@@ -1232,7 +1232,8 @@ useEffect(() => {
           if (i === 4) setShowBuilder(true);
         }}
       />
-      <div style={{ flex: 1, fontFamily: "'Inter', 'Syne', sans-serif", background: "radial-gradient(circle at 0% 0%, #0a0a0f 0%, #050508 100%)", minHeight: "100vh", color: "#f0eeff" }}>
+      {/* CHANGE 2: added className="main-content" */}
+      <div className="main-content" style={{ flex: 1, fontFamily: "'Inter', 'Syne', sans-serif", background: "radial-gradient(circle at 0% 0%, #0a0a0f 0%, #050508 100%)", minHeight: "100vh", color: "#f0eeff" }}>
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet" />
 
         {/* ── WhatsApp keyframes ── */}
@@ -1245,11 +1246,20 @@ useEffect(() => {
             from { opacity: 0; transform: translateX(10px); }
             to   { opacity: 1; transform: translateX(0); }
           }
+
+          @media (max-width: 768px) {
+            .main-content { padding-top: 60px !important; }
+            .agents-grid { grid-template-columns: 1fr !important; }
+            .navbar-inner { padding-left: 60px !important; }
+            .hero-section { padding-top: 32px !important; }
+            .whatsapp-btn { bottom: 16px !important; right: 16px !important; }
+          }
         `}</style>
 
         {/* Navbar */}
         <div style={{ position: "sticky", top: 0, zIndex: 100, backdropFilter: "blur(20px)", background: "rgba(5,5,8,0.8)", borderBottom: "1px solid rgba(255,255,255,0.05)", padding: "12px 24px" }}>
-          <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          {/* CHANGE 3: added className="navbar-inner" */}
+          <div className="navbar-inner" style={{ maxWidth: 1200, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div style={{ fontSize: 20, fontWeight: 800, background: "linear-gradient(135deg, #fff 0%, #c8b8ff 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>🤖 MARGDARSHAK</div>
             <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
               {user ? <UserMenu /> : (
@@ -1298,7 +1308,8 @@ useEffect(() => {
         {/* CHANGE 4: 4 views replacing the single Agent Grid */}
         {/* Marketplace View */}
         {activeView === 0 && (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 20, padding: "0 24px 60px", maxWidth: 1200, margin: "0 auto" }}>
+          // CHANGE 1: added className="agents-grid"
+          <div className="agents-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 20, padding: "0 24px 60px", maxWidth: 1200, margin: "0 auto" }}>
             {filtered.length === 0 ? (
               <div style={{ gridColumn: "1/-1", textAlign: "center", padding: "80px 20px" }}>
                 <div style={{ fontSize: 48, marginBottom: 16, opacity: 0.3 }}>🔍</div>
@@ -1418,6 +1429,7 @@ useEffect(() => {
           rel="noopener noreferrer"
           onMouseEnter={() => setShowWATooltip(true)}
           onMouseLeave={() => setShowWATooltip(false)}
+          className="whatsapp-btn"
           style={{ position: "fixed", bottom: 28, right: 28, display: "flex", alignItems: "center", gap: 12, textDecoration: "none", zIndex: 9999 }}
         >
           {showWATooltip && (
