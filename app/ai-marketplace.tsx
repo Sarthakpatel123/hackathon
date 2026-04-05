@@ -1259,8 +1259,8 @@ useEffect(() => {
           </div>
         </div>
 
-        {/* Hero */}
-        <div style={{ textAlign: "center", padding: "64px 24px 48px", position: "relative" }}>
+        {/* Hero — only shown in Marketplace view */}
+        <div style={{ textAlign: "center", padding: "64px 24px 48px", position: "relative", display: activeView === 0 ? "block" : "none" }}>
           <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 80% 50% at 50% 0%, rgba(100,60,200,0.15) 0%, transparent 70%)", pointerEvents: "none" }} />
           <div style={{ fontSize: 12, letterSpacing: "0.3em", color: "rgba(255,255,255,0.35)", marginBottom: 20 }}>✨ AI AGENTS MARKETPLACE ✨</div>
           <h1 style={{ fontSize: "clamp(36px, 8vw, 56px)", fontWeight: 800, margin: "0 0 16px", background: "linear-gradient(135deg, #ffffff 0%, rgba(200,180,255,0.9) 50%, rgba(124,92,191,0.8) 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Specialized AI agents<br />for every need</h1>
@@ -1281,8 +1281,8 @@ useEffect(() => {
           </div>
         </div>
 
-        {/* Category Filters */}
-        <div style={{ display: "flex", gap: 10, padding: "0 24px 32px", justifyContent: "center", flexWrap: "wrap" }}>
+        {/* Category Filters — only shown in Marketplace view */}
+        <div style={{ display: activeView === 0 ? "flex" : "none", gap: 10, padding: "0 24px 32px", justifyContent: "center", flexWrap: "wrap" }}>
           {CATEGORIES.map((cat) => {
             const active = category === cat;
             const cc = CAT_COLORS[cat];
