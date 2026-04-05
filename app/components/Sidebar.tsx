@@ -6,6 +6,8 @@ interface SidebarProps {
   activeCategory?: string;
   onCategoryChange?: (cat: string) => void;
   recentAgents?: string[];
+  activeNav?: number;
+  onNavChange?: (index: number) => void;
 }
 
 const categories = [

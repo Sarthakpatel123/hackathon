@@ -1156,7 +1156,11 @@ function MarketplaceContent() {
   const { user } = useAuth();
   const [showBuilder, setShowBuilder] = useState(false);
   const [showWATooltip, setShowWATooltip] = useState(true); // ← ADDED
-const [customAgents, setCustomAgents] = useState<Agent[]>([]);
+  const [customAgents, setCustomAgents] = useState<Agent[]>([]);
+  // ── CHANGE 1: new state ──
+  const [activeView, setActiveView] = useState(0);
+  const [recentChats, setRecentChats] = useState<string[]>([]);
+
 useEffect(() => {
   async function loadCustomAgents() {
     const { data } = await supabase.from("custom_agents").select("*").order("created_at", { ascending: false });
@@ -1184,6 +1188,21 @@ useEffect(() => {
   loadCustomAgents();
 }, []);
 
+  // ── CHANGE 2: load recent chats ──
+  useEffect(() => {
+    async function loadRecents() {
+      if (!user) return;
+      const { data } = await supabase
+        .from("chat_history")
+        .select("agent_id, updated_at")
+        .eq("user_id", user.id)
+        .order("updated_at", { ascending: false })
+        .limit(6);
+      if (data) setRecentChats(data.map((d: any) => d.agent_id));
+    }
+    loadRecents();
+  }, [user?.id]);
+
   const allAgents = [...AGENTS, ...customAgents];
   const filtered = AGENTS.filter((a) => {
     const matchCat = category === "All" || a.category === category;
@@ -1201,12 +1220,18 @@ useEffect(() => {
   // ── ONLY CHANGE: wrapped existing return in <Sidebar> + flex container ──
   return (
     <div style={{ display: "flex" }}>
+      {/* CHANGE 3: updated Sidebar props */}
       <Sidebar
-  user={user}
-  activeCategory={category}
-  onCategoryChange={(cat) => setCategory(cat === "All" ? "All" : cat)}
-  recentAgents={[]}
-/>
+        user={user}
+        activeCategory={category}
+        onCategoryChange={(cat) => { setCategory(cat === "All" ? "All" : cat); setActiveView(0); }}
+        recentAgents={recentChats}
+        activeNav={activeView}
+        onNavChange={(i) => {
+          setActiveView(i);
+          if (i === 4) setShowBuilder(true);
+        }}
+      />
       <div style={{ flex: 1, fontFamily: "'Inter', 'Syne', sans-serif", background: "radial-gradient(circle at 0% 0%, #0a0a0f 0%, #050508 100%)", minHeight: "100vh", color: "#f0eeff" }}>
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet" />
 
@@ -1270,18 +1295,102 @@ useEffect(() => {
           })}
         </div>
 
-        {/* Agent Grid */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 20, padding: "0 24px 60px", maxWidth: 1200, margin: "0 auto" }}>
-          {filtered.length === 0 ? (
-            <div style={{ gridColumn: "1/-1", textAlign: "center", padding: "80px 20px" }}>
-              <div style={{ fontSize: 48, marginBottom: 16, opacity: 0.3 }}>🔍</div>
-              <p style={{ fontSize: 16, color: "rgba(255,255,255,0.35)" }}>No agents found for "{search}"</p>
-              <button onClick={() => { setSearch(""); setCategory("All"); }} style={{ marginTop: 16, padding: "8px 20px", borderRadius: 40, border: "1px solid rgba(255,255,255,0.2)", background: "rgba(255,255,255,0.05)", color: "#fff", cursor: "pointer" }}>Clear filters</button>
-            </div>
-          ) : (
-            filtered.map((agent, i) => <AgentCard key={agent.id} agent={agent} index={i} onTry={handleTryAgent} />)
-          )}
-        </div>
+        {/* CHANGE 4: 4 views replacing the single Agent Grid */}
+        {/* Marketplace View */}
+        {activeView === 0 && (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 20, padding: "0 24px 60px", maxWidth: 1200, margin: "0 auto" }}>
+            {filtered.length === 0 ? (
+              <div style={{ gridColumn: "1/-1", textAlign: "center", padding: "80px 20px" }}>
+                <div style={{ fontSize: 48, marginBottom: 16, opacity: 0.3 }}>🔍</div>
+                <p style={{ fontSize: 16, color: "rgba(255,255,255,0.35)" }}>No agents found</p>
+                <button onClick={() => { setSearch(""); setCategory("All"); }} style={{ marginTop: 16, padding: "8px 20px", borderRadius: 40, border: "1px solid rgba(255,255,255,0.2)", background: "rgba(255,255,255,0.05)", color: "#fff", cursor: "pointer" }}>Clear filters</button>
+              </div>
+            ) : (
+              filtered.map((agent, i) => <AgentCard key={agent.id} agent={agent} index={i} onTry={handleTryAgent} />)
+            )}
+          </div>
+        )}
+
+        {/* Recent Runs View */}
+        {activeView === 1 && (
+          <div style={{ maxWidth: 800, margin: "0 auto", padding: "0 24px 60px" }}>
+            <h2 style={{ color: "#fff", fontSize: 22, fontWeight: 700, marginBottom: 24 }}>Recent Runs</h2>
+            {recentChats.length === 0 ? (
+              <div style={{ textAlign: "center", padding: 60, color: "rgba(255,255,255,0.3)" }}>No recent chats yet</div>
+            ) : (
+              recentChats.map((agentId, i) => {
+                const agent = allAgents.find(a => a.id === agentId);
+                if (!agent) return null;
+                return (
+                  <div key={i} onClick={() => handleTryAgent(agent)}
+                    style={{ display: "flex", alignItems: "center", gap: 16, padding: "16px 20px", marginBottom: 12, borderRadius: 14, background: "#0f0f14", border: "1px solid rgba(255,255,255,0.08)", cursor: "pointer" }}>
+                    <div style={{ fontSize: 28 }}>{agent.icon}</div>
+                    <div>
+                      <div style={{ color: "#fff", fontWeight: 600 }}>{agent.name}</div>
+                      <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 13 }}>{agent.tagline}</div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        )}
+
+        {/* My Agents View */}
+        {activeView === 2 && (
+          <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 24px 60px" }}>
+            <h2 style={{ color: "#fff", fontSize: 22, fontWeight: 700, marginBottom: 24 }}>My Agents</h2>
+            {customAgents.length === 0 ? (
+              <div style={{ textAlign: "center", padding: 60 }}>
+                <div style={{ fontSize: 48, marginBottom: 16 }}>🤖</div>
+                <p style={{ color: "rgba(255,255,255,0.3)", marginBottom: 20 }}>You haven't built any agents yet</p>
+                <button onClick={() => setShowBuilder(true)}
+                  style={{ padding: "12px 28px", borderRadius: 40, border: "none", background: "linear-gradient(135deg, #7c5cbf, #5a3d8f)", color: "#fff", cursor: "pointer", fontSize: 14, fontWeight: 600 }}>
+                  🧠 Build Your First Agent
+                </button>
+              </div>
+            ) : (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 20 }}>
+                {customAgents.map((agent, i) => <AgentCard key={agent.id} agent={agent} index={i} onTry={handleTryAgent} />)}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Profile View */}
+        {activeView === 3 && (
+          <div style={{ maxWidth: 600, margin: "0 auto", padding: "0 24px 60px" }}>
+            <h2 style={{ color: "#fff", fontSize: 22, fontWeight: 700, marginBottom: 24 }}>Profile</h2>
+            {!user ? (
+              <div style={{ textAlign: "center", padding: 60, color: "rgba(255,255,255,0.3)" }}>Please login to view your profile</div>
+            ) : (
+              <div style={{ background: "#0f0f14", borderRadius: 20, border: "1px solid rgba(255,255,255,0.08)", overflow: "hidden" }}>
+                <div style={{ padding: 32, borderBottom: "1px solid rgba(255,255,255,0.08)", display: "flex", alignItems: "center", gap: 20 }}>
+                  <div style={{ width: 64, height: 64, borderRadius: "50%", background: "linear-gradient(135deg, #7c5cbf, #5a3d8f)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, fontWeight: 700, color: "#fff" }}>
+                    {user.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 20, fontWeight: 700, color: "#fff" }}>{user.name}</div>
+                    <div style={{ fontSize: 14, color: "rgba(255,255,255,0.5)" }}>{user.email}</div>
+                  </div>
+                </div>
+                <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 16 }}>
+                  {[
+                    { label: "📊 Total Queries", value: user.totalQueries },
+                    { label: "⭐ Favorite Agents", value: user.favoriteAgents.length },
+                    { label: "🤖 Custom Agents Built", value: customAgents.length },
+                    { label: "📅 Joined", value: new Date(user.joinedAt).toLocaleDateString() },
+                  ].map((stat, i) => (
+                    <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "14px 16px", borderRadius: 12, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                      <span style={{ color: "rgba(255,255,255,0.6)", fontSize: 14 }}>{stat.label}</span>
+                      <span style={{ color: "#7c5cbf", fontWeight: 600 }}>{stat.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Footer */}
         <div style={{ textAlign: "center", padding: "48px 24px 64px", borderTop: "1px solid rgba(255,255,255,0.05)", background: "linear-gradient(180deg, transparent 0%, rgba(124,92,191,0.05) 100%)" }}>
